@@ -1,0 +1,69 @@
+#!/bin/sh
+#
+# Run JSHint and Unit test task before commit
+
+passed=true
+ORANGE='\033[0;33m'
+RED='\033[1;31m'
+REDBOLD='\033[1;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+files=$(git diff-index --cached HEAD --name-only --diff-filter ACMR | grep '.js$')
+
+# If Javascript files detected, run JSHint
+if [ "$files" != "" ]; then
+  printf "${ORANGE}:: Running JSHint rules.${NC}\n"
+
+  # Run JSLint and get the output
+  jshint=$(grunt lint)
+  res_hint=$?
+
+  # If it didn't pass, announce it failed and print the output
+  if [ $res_hint != 0 ]; then
+    printf "\n${RED}JSLint failed:${NC}"
+    echo "$jshint"
+    passed=false
+  else
+    printf "${GREEN}JSLint passed.${NC}\n"
+  fi
+
+  # If there were no failures, run Unit test
+  if $passed; then
+    printf "\n\n${ORANGE}:: Running Unit test.${NC}\n"
+
+    # Run Unit test and get the output
+    unittest=$(grunt test)
+    res_test=$?
+
+    # If it didn't pass, announce it failed and print the output
+    if [ $res_test != 0 ]; then
+      printf "${RED}Unit test failed:${NC}"
+      echo "$unittest"
+      passed=false
+    else
+      printf "${GREEN}Unit test passed.${NC}\n"
+    fi
+
+    # If there were no failures, it is good to commit
+    if $passed; then
+      exit 0
+    else
+      printf "\n${REDBOLD}/* *****************\n"
+      echo " * COMMIT FAILED:"
+      echo " * Some Unit test are invalid. Please fix errors and try commiting again."
+      printf " */${NC}\n"
+      exit 1
+    fi
+  else
+    printf "\n${REDBOLD}/* *****************\n"
+    echo " * COMMIT FAILED:"
+    echo " * Some Javascript not passed JSHint. Please fix errors and try commiting again."
+    printf " */${NC}\n"
+    exit 1
+  fi
+
+else
+  printf "${ORANGE}:: Not modified Javascript files detected"
+  exit 0
+fi
